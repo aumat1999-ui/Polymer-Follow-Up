@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกและติดตามงานประจำวัน | Daily Work Log</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Inter', 'sans-serif'],
+                        mono: ['Inter', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Prompt & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #020617; /* Slate 950 */
+            color: #f8fafc; /* Slate 50 */
+        }
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900/90 backdrop-blur-md text-white shadow-lg sticky top-0 z-30 border-b border-slate-800 w-full">
+        <div class="w-full px-4 sm:px-8 lg:px-12 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-xl shadow-inner flex items-center justify-center">
+                    <i data-lucide="clipboard-check" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight">Daily Work Log & Tracker</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">ระบบบันทึกและติดตามสถานะงานประจำวัน (Polymer / Utility / Solvent)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 sm:gap-5">
+                <!-- Real-time Clock & Date Badge -->
+                <div class="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl text-xs sm:text-sm">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span id="live-date-display" class="font-medium text-slate-200">กำลังโหลดวันที่...</span>
+                    <span class="text-slate-600">|</span>
+                    <span id="live-clock-display" class="font-mono font-semibold text-blue-400">00:00:00</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 w-full px-4 sm:px-8 lg:px-12 py-6 space-y-6 max-w-[1920px] mx-auto">
+
+        <!-- KPI Status Summary Cards -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 w-full">
+            <!-- Total -->
+            <div onclick="filterByStatusCard('ALL')" class="cursor-pointer bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-sm hover:shadow-md hover:border-blue-500/50 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400">งานทั้งหมด (Total)</span>
+                    <div class="p-2 rounded-xl bg-slate-800 text-slate-300 group-hover:bg-blue-950 group-hover:text-blue-400 transition-colors">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="stat-total" class="text-2xl sm:text-3xl font-bold text-slate-100">0</span>
+                    <span class="text-xs text-slate-500">รายการ</span>
+                </div>
+            </div>
+
+            <!-- In-Progress -->
+            <div onclick="filterByStatusCard('In-Progress')" class="cursor-pointer bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-sm hover:shadow-md hover:border-blue-500/50 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-blue-400">กำลังดำเนินการ (In-Progress)</span>
+                    <div class="p-2 rounded-xl bg-blue-950/60 text-blue-400">
+                        <i data-lucide="loader-2" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="stat-inprogress" class="text-2xl sm:text-3xl font-bold text-blue-300">0</span>
+                    <span class="text-xs text-slate-500">รายการ</span>
+                </div>
+            </div>
+
+            <!-- Completed -->
+            <div onclick="filterByStatusCard('Completed')" class="cursor-pointer bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/50 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-emerald-400">เสร็จสิ้น (Completed)</span>
+                    <div class="p-2 rounded-xl bg-emerald-950/60 text-emerald-400">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="stat-completed" class="text-2xl sm:text-3xl font-bold text-emerald-300">0</span>
+                    <span class="text-xs text-slate-500">รายการ</span>
+                </div>
+            </div>
+
+            <!-- Not Started -->
+            <div onclick="filterByStatusCard('Not Started')" class="cursor-pointer bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-sm hover:shadow-md hover:border-amber-500/50 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-amber-400">ยังไม่เริ่ม (Not Started)</span>
+                    <div class="p-2 rounded-xl bg-amber-950/60 text-amber-400">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="stat-notstarted" class="text-2xl sm:text-3xl font-bold text-amber-300">0</span>
+                    <span class="text-xs text-slate-500">รายการ</span>
+                </div>
+            </div>
+
+            <!-- Cancelled -->
+            <div onclick="filterByStatusCard('Cancelled')" class="col-span-2 sm:col-span-1 cursor-pointer bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-sm hover:shadow-md hover:border-rose-500/50 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-rose-400">ยกเลิก (Cancelled)</span>
+                    <div class="p-2 rounded-xl bg-rose-950/60 text-rose-400">
+                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="stat-cancelled" class="text-2xl sm:text-3xl font-bold text-rose-300">0</span>
+                    <span class="text-xs text-slate-500">รายการ</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workspace Stack: Top Form + Bottom Tracking Table -->
+        <div class="flex flex-col gap-6 items-stretch transition-all duration-300">
+
+            <!-- TOP SECTION: Work Entry Form -->
+            <section id="form-section" class="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden transition-all duration-300">
+                <div class="bg-slate-800/80 text-white px-5 py-4 flex items-center justify-between border-b border-slate-700/60">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="file-plus-2" class="w-5 h-5 text-blue-400"></i>
+                        <h2 id="form-title" class="font-semibold text-base">บันทึกข้อมูลงานประจำวัน</h2>
+                    </div>
+                    <button type="button" id="cancel-edit-btn" onclick="resetForm()" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1 rounded-lg transition-colors">
+                        ยกเลิกการแก้ไข
+                    </button>
+                </div>
+
+                <form id="work-form" onsubmit="handleFormSubmit(event)" class="p-5 space-y-4">
+                    <input type="hidden" id="edit-id" value="">
+
+                    <!-- 1. วันที่ลงข้อมูล & ชื่อคนลงข้อมูล -->
+                    <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label for="work-date" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                                1. วันที่ลงข้อมูล & ผู้บันทึก
+                            </label>
+                            <button type="button" onclick="setTodayDate()" class="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1">
+                                <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i> ใช้วันนี้ (Real-time)
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">วันที่ลงข้อมูล (ปฏิทิน) <span class="text-rose-500">*</span></label>
+                                <input type="date" id="work-date" required
+                                    class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                            </div>
+
+                            <!-- Custom Dropdown: ชื่อผู้ลงข้อมูล -->
+                            <div class="relative custom-dropdown-container" data-dropdown="recorder">
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-xs text-slate-400">ชื่อผู้ลงข้อมูล <span class="text-rose-500">*</span></label>
+                                    <button type="button" onclick="openAddPersonModal('recorder')" class="text-[11px] text-blue-400 hover:underline font-medium flex items-center gap-0.5">
+                                        <i data-lucide="user-plus" class="w-3 h-3"></i> + เพิ่มรายชื่อ
+                                    </button>
+                                </div>
+                                <input type="hidden" id="recorder-name" required>
+                                <button type="button" onclick="toggleCustomDropdown('recorder')" id="recorder-trigger"
+                                    class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                                    <span id="recorder-display" class="text-slate-500 truncate">-- เลือกชื่อผู้ลงข้อมูล --</span>
+                                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 shrink-0 ml-2"></i>
+                                </button>
+                                <!-- Dropdown Menu -->
+                                <div id="recorder-menu" class="hidden absolute z-40 mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+                                    <div class="p-2 border-b border-slate-800 bg-slate-950">
+                                        <input type="text" id="recorder-search" oninput="renderDropdownList('recorder')" placeholder="ค้นหาชื่อ หรือ ตำแหน่ง..."
+                                            class="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <ul id="recorder-list" class="max-h-52 overflow-y-auto divide-y divide-slate-800"></ul>
+                                    <div class="p-2 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-400">
+                                        <span>กด <b class="text-rose-400">✕</b> ท้ายชื่อเพื่อลบ</span>
+                                        <button type="button" onclick="resetDefaultPersonnel('personnel')" class="text-blue-400 hover:underline font-medium">รีเซ็ตเริ่มต้น (7 ท่าน)</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <!-- 2. บริเวณพื้นที่ที่ทำงาน -->
+                        <div>
+                            <label for="work-area" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                                2. บริเวณพื้นที่ที่ทำงาน <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <select id="work-area" required
+                                    class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm font-medium text-slate-200 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                                    <option value="" disabled selected>-- เลือกบริเวณพื้นที่ปฏิบัติงาน --</option>
+                                    <optgroup label="Polymer process">
+                                        <option value="Polymer#1">Polymer #1</option>
+                                        <option value="Polymer#2">Polymer #2</option>
+                                        <option value="Polymer#3">Polymer #3</option>
+                                    </optgroup>
+                                    <optgroup label="Utility">
+                                        <option value="UT1">UT1</option>
+                                        <option value="UT2">UT2</option>
+                                        <option value="UT3">UT3</option>
+                                        <option value="UT4">UT4</option>
+                                    </optgroup>
+                                    <optgroup label="Solvent Process">
+                                        <option value="Solvent Process">Solvent Process</option>
+                                    </optgroup>
+                                </select>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3.5 top-3 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- ผู้รับเหมา -->
+                        <div class="relative custom-dropdown-container" data-dropdown="contractor">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                                    ผู้รับเหมา (Contractor) <span class="text-rose-500">*</span>
+                                </label>
+                                <button type="button" onclick="openAddPersonModal('contractor')" class="text-[11px] text-blue-400 hover:underline font-medium flex items-center gap-0.5">
+                                    <i data-lucide="building-2" class="w-3 h-3"></i> + เพิ่มผู้รับเหมา
+                                </button>
+                            </div>
+                            <input type="hidden" id="contractor-name" required>
+                            <button type="button" onclick="toggleCustomDropdown('contractor')" id="contractor-trigger"
+                                class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                                <span id="contractor-display" class="text-slate-200 font-medium truncate">ไม่มีผู้รับเหมา / ดำเนินการเอง (In-house)</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 shrink-0 ml-2"></i>
+                            </button>
+                            <!-- Dropdown Menu -->
+                            <div id="contractor-menu" class="hidden absolute z-40 mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+                                <div class="p-2 border-b border-slate-800 bg-slate-950">
+                                    <input type="text" id="contractor-search" oninput="renderDropdownList('contractor')" placeholder="ค้นหาชื่อบริษัทผู้รับเหมา..."
+                                        class="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <ul id="contractor-list" class="max-h-52 overflow-y-auto divide-y divide-slate-800"></ul>
+                                <div class="p-2 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-400">
+                                    <span>กด <b class="text-rose-400">✕</b> ท้ายชื่อเพื่อลบ</span>
+                                    <button type="button" onclick="resetDefaultPersonnel('contractor')" class="text-blue-400 hover:underline font-medium">รีเซ็ตผู้รับเหมา</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. รายละเอียดงาน -->
+                    <div>
+                        <label for="work-details" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                            3. รายละเอียดงานที่ปฏิบัติ <span class="text-rose-500">*</span>
+                        </label>
+                        <textarea id="work-details" rows="3" required
+                            placeholder="ระบุรายละเอียดงานที่ทำ, ปัญหาที่พบ, หรืออุปกรณ์ที่ตรวจสอบ/ซ่อมบำรุง..."
+                            class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"></textarea>
+                    </div>
+
+                    <!-- 4. เจ้าของงาน & เจ้าของพื้นที่ -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Custom Dropdown: เจ้าของงาน -->
+                        <div class="relative custom-dropdown-container" data-dropdown="task">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                                    4. เจ้าของงาน <span class="text-rose-500">*</span>
+                                </label>
+                                <button type="button" onclick="openAddPersonModal('task')" class="text-[11px] text-blue-400 hover:underline font-medium">
+                                    + เพิ่มรายชื่อ
+                                </button>
+                            </div>
+                            <input type="hidden" id="task-owner" required>
+                            <button type="button" onclick="toggleCustomDropdown('task')" id="task-trigger"
+                                class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                                <span id="task-display" class="text-slate-500 truncate">-- เลือกเจ้าของงาน --</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 shrink-0 ml-2"></i>
+                            </button>
+                            <!-- Dropdown Menu -->
+                            <div id="task-menu" class="hidden absolute z-40 mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+                                <div class="p-2 border-b border-slate-800 bg-slate-950">
+                                    <input type="text" id="task-search" oninput="renderDropdownList('task')" placeholder="ค้นหาชื่อ หรือ ตำแหน่ง..."
+                                        class="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <ul id="task-list" class="max-h-52 overflow-y-auto divide-y divide-slate-800"></ul>
+                                <div class="p-2 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-400">
+                                    <span>กด <b class="text-rose-400">✕</b> ท้ายชื่อเพื่อลบ</span>
+                                    <button type="button" onclick="resetDefaultPersonnel('personnel')" class="text-blue-400 hover:underline font-medium">รีเซ็ตเริ่มต้น (7 ท่าน)</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Dropdown: เจ้าของพื้นที่ (29 ท่าน) -->
+                        <div class="relative custom-dropdown-container" data-dropdown="area">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                                    เจ้าของพื้นที่ <span class="text-rose-500">*</span>
+                                </label>
+                                <button type="button" onclick="openAddPersonModal('area')" class="text-[11px] text-blue-400 hover:underline font-medium">
+                                    + เพิ่มรายชื่อ
+                                </button>
+                            </div>
+                            <input type="hidden" id="area-owner" required>
+                            <button type="button" onclick="toggleCustomDropdown('area')" id="area-trigger"
+                                class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                                <span id="area-display" class="text-slate-500 truncate">-- เลือกเจ้าของพื้นที่ --</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 shrink-0 ml-2"></i>
+                            </button>
+                            <!-- Dropdown Menu -->
+                            <div id="area-menu" class="hidden absolute z-40 mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+                                <div class="p-2 border-b border-slate-800 bg-slate-950">
+                                    <input type="text" id="area-search" oninput="renderDropdownList('area')" placeholder="ค้นหาชื่อเจ้าของพื้นที่..."
+                                        class="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <ul id="area-list" class="max-h-52 overflow-y-auto divide-y divide-slate-800"></ul>
+                                <div class="p-2 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-400">
+                                    <span>กด <b class="text-rose-400">✕</b> ท้ายชื่อเพื่อลบ</span>
+                                    <button type="button" onclick="resetDefaultPersonnel('area')" class="text-blue-400 hover:underline font-medium">รีเซ็ตเริ่มต้น (29 ท่าน)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. กำหนดการ & สถานะงาน -->
+                    <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3">
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                            5. กำหนดการ & สถานะงาน <span class="text-rose-500">*</span>
+                        </label>
+
+                        <!-- วันที่เริ่มงาน & วันที่งานเสร็จ -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="start-date" class="block text-xs text-slate-400 mb-1">
+                                    วันที่เริ่มงาน <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="date" id="start-date" required onchange="validateScheduleAndStatus()"
+                                    class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                            </div>
+
+                            <div>
+                                <label for="end-date" class="block text-xs text-slate-400 mb-1">
+                                    วันที่งานเสร็จ <span id="end-date-required-star" class="hidden text-rose-400 font-bold">* (บังคับ)</span>
+                                </label>
+                                <input type="date" id="end-date" onchange="validateScheduleAndStatus()"
+                                    class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                            </div>
+                        </div>
+
+                        <!-- แถบแจ้งเตือนเงื่อนไขวันที่และสถานะ -->
+                        <div id="schedule-rule-notice" class="hidden text-xs px-3 py-2 rounded-lg border flex items-start gap-2"></div>
+
+                        <!-- สถานะงาน -->
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1.5">สถานะงาน</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="status-selector">
+                                <label id="status-label-notstarted" class="cursor-pointer">
+                                    <input type="radio" name="work-status" value="Not Started" onchange="handleStatusRadioChange()" class="peer sr-only">
+                                    <div class="px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-center text-xs font-semibold text-slate-300 peer-checked:bg-amber-950/60 peer-checked:border-amber-500 peer-checked:text-amber-400 transition-all flex items-center justify-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Not Started
+                                    </div>
+                                </label>
+                                <label id="status-label-inprogress" class="cursor-pointer">
+                                    <input type="radio" name="work-status" value="In-Progress" onchange="handleStatusRadioChange()" checked class="peer sr-only">
+                                    <div class="px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-center text-xs font-semibold text-slate-300 peer-checked:bg-blue-950/60 peer-checked:border-blue-500 peer-checked:text-blue-400 transition-all flex items-center justify-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-blue-500"></span> In-Progress
+                                    </div>
+                                </label>
+                                <label id="status-label-completed" class="cursor-pointer">
+                                    <input type="radio" name="work-status" value="Completed" onchange="handleStatusRadioChange()" class="peer sr-only">
+                                    <div class="px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-center text-xs font-semibold text-slate-300 peer-checked:bg-emerald-950/60 peer-checked:border-emerald-500 peer-checked:text-emerald-400 transition-all flex items-center justify-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Completed
+                                    </div>
+                                </label>
+                                <label id="status-label-cancelled" class="cursor-pointer">
+                                    <input type="radio" name="work-status" value="Cancelled" onchange="handleStatusRadioChange()" class="peer sr-only">
+                                    <div class="px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-center text-xs font-semibold text-slate-300 peer-checked:bg-rose-950/60 peer-checked:border-rose-500 peer-checked:text-rose-400 transition-all flex items-center justify-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-rose-500"></span> Cancelled
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-1">
+                        <button type="submit" id="submit-btn"
+                            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span id="submit-btn-text">บันทึกข้อมูลงาน</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- BOTTOM SECTION: Work Tracking Table & Filters -->
+            <section id="table-section" class="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm flex flex-col overflow-hidden transition-all duration-300">
+                <!-- Table Header & Actions -->
+                <div class="p-5 border-b border-slate-800 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h2 class="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+                                <i data-lucide="list-todo" class="w-5 h-5 text-blue-400"></i>
+                                รายการติดตามสถานะงานประจำวัน
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">สามารถเปลี่ยนสถานะงานได้ทันทีจากตาราง (หากยังไม่ถึงวันเริ่มงาน จะล็อกเป็น Not Started)</p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="exportToCSV()"
+                                class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors flex items-center gap-1.5">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Export CSV / Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Controls -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 pt-1">
+                        <!-- Search -->
+                        <div class="lg:col-span-3 relative">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-2.5"></i>
+                            <input type="text" id="filter-search" oninput="renderTable()" placeholder="ค้นหางาน, ผู้รับเหมา, ชื่อ..."
+                                class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl text-xs sm:text-sm focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <!-- Filter Date -->
+                        <div class="lg:col-span-3 relative">
+                            <input type="date" id="filter-date" onchange="renderTable()"
+                                class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-slate-300 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <!-- Filter Area -->
+                        <div class="lg:col-span-2">
+                            <select id="filter-area" onchange="renderTable()"
+                                class="w-full px-2.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-slate-300 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="ALL">ทุกพื้นที่ (All Areas)</option>
+                                <optgroup label="Polymer process">
+                                    <option value="Polymer#1">Polymer #1</option>
+                                    <option value="Polymer#2">Polymer #2</option>
+                                    <option value="Polymer#3">Polymer #3</option>
+                                </optgroup>
+                                <optgroup label="Utility">
+                                    <option value="UT1">UT1</option>
+                                    <option value="UT2">UT2</option>
+                                    <option value="UT3">UT3</option>
+                                    <option value="UT4">UT4</option>
+                                </optgroup>
+                                <optgroup label="Solvent Process">
+                                    <option value="Solvent Process">Solvent Process</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <!-- Filter Person -->
+                        <div class="lg:col-span-2">
+                            <select id="filter-person" onchange="renderTable()"
+                                class="w-full px-2.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-slate-300 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="ALL">ทุกคน (All Staff)</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter Status -->
+                        <div class="lg:col-span-2">
+                            <select id="filter-status" onchange="renderTable()"
+                                class="w-full px-2.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-slate-300 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="ALL">ทุกสถานะ</option>
+                                <option value="In-Progress">In-Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Not Started">Not Started</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Active Filter Reset Bar -->
+                    <div id="active-filter-bar" class="hidden flex items-center justify-between bg-blue-950/60 border border-blue-900/60 px-3 py-1.5 rounded-xl text-xs text-blue-300">
+                        <span id="filter-summary-text">กำลังกรองข้อมูล...</span>
+                        <button type="button" onclick="resetFilters()" class="font-semibold underline hover:text-blue-100">ล้างตัวกรองทั้งหมด</button>
+                    </div>
+                </div>
+
+                <!-- Responsive Table Wrapper -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950/80 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                <th class="py-3.5 px-4 whitespace-nowrap">วันที่ / ผู้ลงข้อมูล</th>
+                                <th class="py-3.5 px-4 whitespace-nowrap">พื้นที่ทำงาน</th>
+                                <th class="py-3.5 px-4 min-w-[210px]">รายละเอียดงาน</th>
+                                <th class="py-3.5 px-4 whitespace-nowrap">เจ้าของงาน / พื้นที่ / ผู้รับเหมา</th>
+                                <th class="py-3.5 px-4 whitespace-nowrap">เริ่มงาน - เสร็จสิ้น</th>
+                                <th class="py-3.5 px-4 whitespace-nowrap">สถานะงาน</th>
+                                <th class="py-3.5 px-4 text-right whitespace-nowrap">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="work-table-body" class="divide-y divide-slate-800/60 text-sm">
+                            <!-- Rows rendered dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="hidden py-14 px-4 text-center">
+                    <div class="w-14 h-14 bg-slate-950 text-slate-600 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-slate-800">
+                        <i data-lucide="folder-open" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-sm font-semibold text-slate-300">ไม่พบรายการงานที่ตรงกับเงื่อนไข</h3>
+                    <p class="text-xs text-slate-500 mt-1">ลองเปลี่ยนตัวกรองค้นหา หรือเพิ่มบันทึกงานใหม่จากแบบฟอร์มด้านบน</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modal: Add Person / Contractor -->
+    <div id="add-person-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-slate-900 rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 id="modal-title" class="font-bold text-slate-100 text-base">เพิ่มรายชื่อใหม่</h3>
+                <button type="button" onclick="closeAddPersonModal()" class="text-slate-400 hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div>
+                <label id="modal-input-label" class="block text-xs font-medium text-slate-400 mb-1">ชื่อ-นามสกุล และตำแหน่ง</label>
+                <input type="text" id="new-person-input" placeholder="เช่น นายสมชาย ใจดี — Engineer"
+                    class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" onclick="closeAddPersonModal()" class="px-4 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl">ยกเลิก</button>
+                <button type="button" onclick="confirmAddPerson()" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl">เพิ่มรายชื่อ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Delete Record -->
+    <div id="delete-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-slate-900 rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-800 space-y-4">
+            <div class="flex items-center gap-3 text-rose-400">
+                <div class="p-2.5 bg-rose-950/60 rounded-xl border border-rose-900/60">
+                    <i data-lucide="trash-2" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-100 text-base">ยืนยันการลบรายการ?</h3>
+                    <p class="text-xs text-slate-400">ข้อมูลงานนี้จะถูกลบออกจากระบบอย่างถาวร</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl">ยกเลิก</button>
+                <button type="button" onclick="confirmDeleteRecord()" class="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl">ยืนยันลบข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm font-medium border border-slate-700">
+            <i id="toast-icon" data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+            <span id="toast-message">บันทึกสำเร็จ</span>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // รายชื่อบุคลากรเริ่มต้น 7 ท่าน (สำหรับผู้ลงข้อมูล และเจ้าของงาน)
+        const DEFAULT_PERSONNEL = [
+            "นายบรรจงศักดิ์ ล้ำเหลือ — Manager",
+            "นายวิทยา ฤกษ์ใหญ่ — Asst.Chief",
+            "นายอดุลยฤทธิ์ สุดทองคง — Asst.Chief",
+            "น.ส.ณาญญา เสาขวัญ — Engineer",
+            "นายอัครพงษ์ ศรีวัชรวงค์ — Engineer",
+            "นายชวาล บุษดี — Supervisor",
+            "นายยศนรินทร์ สายบุญมี — Leader"
+        ];
+
+        // รายชื่อเจ้าของพื้นที่เริ่มต้น 29 ท่าน (พร้อมคำนำหน้าชื่อ)
+        const DEFAULT_AREA_OWNERS = [
+            "นายบรรจงศักดิ์ ล้ำเหลือ",
+            "นายวิทยา ฤกษ์ใหญ่",
+            "นายอดุลยฤทธิ์ สุดทองคง",
+            "น.ส.ณาญญา เสาขวัญ",
+            "นายอัครพงษ์ ศรีวัชรวงค์",
+            "นายชวาล บุษดี",
+            "นายยศนรินทร์ สายบุญมี",
+            "นายบุญธรรม สวัสดี",
+            "นายศรายุทธ บุญชอบ",
+            "นายธีรินทร์ เนตรวิศิษย์",
+            "นายวีระยุทธ โพธิ์ขาว",
+            "นายจักรี สิงห์แก้ว",
+            "นายธนกฤต เดชผล",
+            "นายวันเฉลิม คร้ามสมบูญ",
+            "นายถาวร จันทร์เอี่ยม",
+            "นายธีรเดช คำสันทราย",
+            "นายอาทิตย์ ศิริมาลา",
+            "นายอภิวัฒน์ แสงงาม",
+            "นายภาณุพงศ์ ดาหาญ",
+            "นายพัฒนา บรรจง",
+            "นายศุภกร ศิริผไทธร",
+            "นายสมศักดิ์ วิบูลย์กุล",
+            "นายอาคม ถานะ",
+            "นายสิงห์ เนียมหอม",
+            "นายมงคล หวังประสพกลาง",
+            "นายเอกพล สันตะวงศ์",
+            "นายวชิระ สว่างจิตร",
+            "นายฐานวุฒิ แก้วแสน",
+            "น.ส.ทัศพร มณีแสง"
+        ];
+
+        // รายชื่อผู้รับเหมาเริ่มต้น
+        const DEFAULT_CONTRACTORS = [
+            "ไม่มีผู้รับเหมา / ดำเนินการเอง (In-house)",
+            "บจก. เอ็นจิเนียริ่ง แอนด์ เมนเทนแนนซ์ (E&M)",
+            "บจก. ไทย พาวเวอร์ แอนด์ คอนโทรล",
+            "บจก. อีสเทิร์น แมคคานิคอล",
+            "หจก. ชลบุรี เซอร์วิส แอนด์ ซัพพลาย"
+        ];
+
+        // State Variables
+        let workLogs = [];
+        let personnelList = [];
+        let areaOwnerList = [];
+        let contractorList = [];
+        let activeModalType = 'recorder';
+        let pendingDeleteId = null;
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            startRealtimeClock();
+            setTodayDate();
+            loadStoredData();
+            populateAllDropdowns();
+            validateScheduleAndStatus();
+            renderTable();
+            updateStats();
+            setupOutsideClickListener();
+        });
+
+        // 1. Real-time Clock & Date Header
+        function startRealtimeClock() {
+            const updateClock = () => {
+                const now = new Date();
+                const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+                document.getElementById('live-date-display').textContent = now.toLocaleDateString('th-TH', dateOptions);
+                document.getElementById('live-clock-display').textContent = now.toLocaleTimeString('th-TH', { hour12: false });
+            };
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        function getTodayISOString() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function setTodayDate() {
+            const today = getTodayISOString();
+            document.getElementById('work-date').value = today;
+            if (!document.getElementById('start-date').value) {
+                document.getElementById('start-date').value = today;
+            }
+            validateScheduleAndStatus();
+        }
+
+        // 2. Load & Seed Initial Data
+        function loadStoredData() {
+            const savedPersonnel = localStorage.getItem('plant_personnel_dark_v1');
+            personnelList = savedPersonnel ? JSON.parse(savedPersonnel) : [...DEFAULT_PERSONNEL];
+
+            const savedAreaOwners = localStorage.getItem('plant_area_owners_dark_v1');
+            areaOwnerList = savedAreaOwners ? JSON.parse(savedAreaOwners) : [...DEFAULT_AREA_OWNERS];
+
+            const savedContractors = localStorage.getItem('plant_contractors_dark_v1');
+            contractorList = savedContractors ? JSON.parse(savedContractors) : [...DEFAULT_CONTRACTORS];
+
+            const savedLogs = localStorage.getItem('plant_work_logs_dark_v1');
+            if (savedLogs) {
+                workLogs = JSON.parse(savedLogs);
+            } else {
+                const todayStr = getTodayISOString();
+                const tomorrowDate = new Date();
+                tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+                const tomorrow = `${tomorrowDate.getFullYear()}-${String(tomorrowDate.getMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getDate()).padStart(2, '0')}`;
+
+                workLogs = [
+                    {
+                        id: 'LOG-' + Date.now() + '-1',
+                        date: todayStr,
+                        startDate: todayStr,
+                        endDate: '',
+                        recorder: 'นายยศนรินทร์ สายบุญมี — Leader',
+                        area: 'Polymer#1',
+                        details: 'ตรวจสอบค่า Differential Pressure (dP) ของ Filter F265 และเตรียมสลับ Line เพื่อล้างไส้กรองตามรอบ PM',
+                        taskOwner: 'นายชวาล บุษดี — Supervisor',
+                        areaOwner: 'นายวิทยา ฤกษ์ใหญ่',
+                        contractor: 'ไม่มีผู้รับเหมา / ดำเนินการเอง (In-house)',
+                        status: 'In-Progress',
+                        updatedAt: '08:30'
+                    },
+                    {
+                        id: 'LOG-' + Date.now() + '-2',
+                        date: todayStr,
+                        startDate: todayStr,
+                        endDate: todayStr,
+                        recorder: 'นายอัครพงษ์ ศรีวัชรวงค์ — Engineer',
+                        area: 'UT2',
+                        details: 'ตรวจเช็คระดับน้ำมันหล่อลื่นและอุณหภูมิ Bearing ของ Cooling Water Pump P-202B พร้อมบันทึกค่า Vibration',
+                        taskOwner: 'นายอัครพงษ์ ศรีวัชรวงค์ — Engineer',
+                        areaOwner: 'นายอดุลยฤทธิ์ สุดทองคง',
+                        contractor: 'บจก. เอ็นจิเนียริ่ง แอนด์ เมนเทนแนนซ์ (E&M)',
+                        status: 'Completed',
+                        updatedAt: '09:15'
+                    },
+                    {
+                        id: 'LOG-' + Date.now() + '-3',
+                        date: todayStr,
+                        startDate: tomorrow,
+                        endDate: '',
+                        recorder: 'น.ส.ณาญญา เสาขวัญ — Engineer',
+                        area: 'Solvent Process',
+                        details: 'ตรวจสอบความสมบูรณ์ของท่อส่ง Solvent Recovery และเช็คจุดเชื่อมต่อ Flange ก่อนเริ่มเดินเครื่องรอบบ่าย',
+                        taskOwner: 'น.ส.ณาญญา เสาขวัญ — Engineer',
+                        areaOwner: 'นายบรรจงศักดิ์ ล้ำเหลือ',
+                        contractor: 'บจก. อีสเทิร์น แมคคานิคอล',
+                        status: 'Not Started',
+                        updatedAt: '09:45'
+                    },
+                    {
+                        id: 'LOG-' + Date.now() + '-4',
+                        date: todayStr,
+                        startDate: todayStr,
+                        endDate: '',
+                        recorder: 'นายชวาล บุษดี — Supervisor',
+                        area: 'Polymer#3',
+                        details: 'สอบเทียบ (Calibrate) หัววัดอุณหภูมิ Reactor R-301 และทดสอบสัญญาณ Alarm บนหน้าจอ DCS',
+                        taskOwner: 'นายยศนรินทร์ สายบุญมี — Leader',
+                        areaOwner: 'นายวิทยา ฤกษ์ใหญ่',
+                        contractor: 'บจก. ไทย พาวเวอร์ แอนด์ คอนโทรล',
+                        status: 'In-Progress',
+                        updatedAt: '10:20'
+                    }
+                ];
+                saveLogs();
+            }
+
+            setDropdownValue('contractor', contractorList[0]);
+        }
+
+        function saveLogs() {
+            localStorage.setItem('plant_work_logs_dark_v1', JSON.stringify(workLogs));
+            updateStats();
+        }
+
+        // 3. Schedule & Status Validation Rules
+        function validateScheduleAndStatus() {
+            const today = getTodayISOString();
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const noticeEl = document.getElementById('schedule-rule-notice');
+            const endDateStar = document.getElementById('end-date-required-star');
+            const statusRadios = document.querySelectorAll('input[name="work-status"]');
+            const selectedStatus = document.querySelector('input[name="work-status"]:checked')?.value;
+
+            if (startDate && startDate > today) {
+                statusRadios.forEach(radio => {
+                    if (radio.value === 'Not Started') {
+                        radio.checked = true;
+                        radio.disabled = false;
+                    } else {
+                        radio.disabled = true;
+                    }
+                });
+
+                ['inprogress', 'completed', 'cancelled'].forEach(key => {
+                    const lbl = document.getElementById(`status-label-${key}`);
+                    if (lbl) lbl.classList.add('opacity-40', 'cursor-not-allowed');
+                });
+
+                endDateStar.classList.add('hidden');
+                noticeEl.className = 'text-xs px-3 py-2 rounded-lg border bg-amber-950/60 border-amber-800 text-amber-300 flex items-start gap-2';
+                noticeEl.innerHTML = `<i data-lucide="calendar-clock" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i><span>เนื่องจาก <b>ยังไม่ถึงวันที่เริ่มงาน (${formatThaiDate(startDate)})</b> ระบบจึงบังคับสถานะเป็น <b>Not Started</b> อัตโนมัติ</span>`;
+                noticeEl.classList.remove('hidden');
+                lucide.createIcons();
+                return;
+            } else {
+                statusRadios.forEach(radio => {
+                    radio.disabled = false;
+                });
+                ['inprogress', 'completed', 'cancelled'].forEach(key => {
+                    const lbl = document.getElementById(`status-label-${key}`);
+                    if (lbl) lbl.classList.remove('opacity-40', 'cursor-not-allowed');
+                });
+            }
+
+            if (selectedStatus === 'Completed') {
+                endDateStar.classList.remove('hidden');
+                if (!endDate) {
+                    noticeEl.className = 'text-xs px-3 py-2 rounded-lg border bg-rose-950/60 border-rose-800 text-rose-300 flex items-start gap-2';
+                    noticeEl.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i><span>กรุณาระบุ <b>วันที่งานเสร็จ</b> ก่อนบันทึกสถานะ <b>Completed</b></span>`;
+                    noticeEl.classList.remove('hidden');
+                    lucide.createIcons();
+                    return;
+                }
+            } else {
+                endDateStar.classList.add('hidden');
+            }
+
+            noticeEl.classList.add('hidden');
+        }
+
+        function handleStatusRadioChange() {
+            const selectedStatus = document.querySelector('input[name="work-status"]:checked')?.value;
+            const endDateInput = document.getElementById('end-date');
+
+            if (selectedStatus === 'Completed' && !endDateInput.value) {
+                endDateInput.value = getTodayISOString();
+                showToast('เติมวันที่งานเสร็จเป็นวันนี้ให้อัตโนมัติ (สามารถแก้ไขได้)');
+            }
+            validateScheduleAndStatus();
+        }
+
+        // 4. Custom Dropdown with Delete (✕) Button
+        function populateAllDropdowns() {
+            renderDropdownList('recorder');
+            renderDropdownList('task');
+            renderDropdownList('area');
+            renderDropdownList('contractor');
+            populatePersonFilter();
+        }
+
+        function populatePersonFilter() {
+            const filterPerson = document.getElementById('filter-person');
+            const currentVal = filterPerson.value;
+            const combinedNames = Array.from(new Set([...personnelList, ...areaOwnerList]));
+            filterPerson.innerHTML = `<option value="ALL">ทุกคน (All Staff)</option>` +
+                combinedNames.map(p => `<option value="${escapeHTML(p)}">${escapeHTML(p)}</option>`).join('');
+            if (combinedNames.includes(currentVal)) {
+                filterPerson.value = currentVal;
+            }
+        }
+
+        function toggleCustomDropdown(type) {
+            const targetMenu = document.getElementById(`${type}-menu`);
+            const isHidden = targetMenu.classList.contains('hidden');
+
+            ['recorder', 'task', 'area', 'contractor'].forEach(t => {
+                document.getElementById(`${t}-menu`).classList.add('hidden');
+            });
+
+            if (isHidden) {
+                targetMenu.classList.remove('hidden');
+                const searchInput = document.getElementById(`${type}-search`);
+                searchInput.value = '';
+                renderDropdownList(type);
+                setTimeout(() => searchInput.focus(), 50);
+            }
+        }
+
+        function setupOutsideClickListener() {
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.custom-dropdown-container')) {
+                    ['recorder', 'task', 'area', 'contractor'].forEach(t => {
+                        const menu = document.getElementById(`${t}-menu`);
+                        if (menu) menu.classList.add('hidden');
+                    });
+                }
+            });
+        }
+
+        function getListByType(type) {
+            if (type === 'contractor') return contractorList;
+            if (type === 'area') return areaOwnerList;
+            return personnelList;
+        }
+
+        function renderDropdownList(type) {
+            const listEl = document.getElementById(`${type}-list`);
+            const searchTerm = (document.getElementById(`${type}-search`)?.value || '').toLowerCase().trim();
+            const hiddenInputId = type === 'recorder' ? 'recorder-name' : (type === 'task' ? 'task-owner' : (type === 'area' ? 'area-owner' : 'contractor-name'));
+            const currentSelected = document.getElementById(hiddenInputId).value;
+
+            const sourceList = getListByType(type);
+            const filtered = sourceList.filter(item => item.toLowerCase().includes(searchTerm));
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<li class="px-3 py-3 text-xs text-slate-500 text-center">ไม่พบรายชื่อที่ค้นหา</li>`;
+                return;
+            }
+
+            listEl.innerHTML = filtered.map(item => {
+                const isSelected = item === currentSelected;
+                const safeStr = item.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const isDefaultInHouse = (type === 'contractor' && item === 'ไม่มีผู้รับเหมา / ดำเนินการเอง (In-house)');
+
+                return `
+                    <li class="flex items-center justify-between px-3 py-2 text-xs sm:text-sm hover:bg-slate-800 transition-colors ${isSelected ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-300'}">
+                        <button type="button" onclick="selectDropdownItem('${type}', '${safeStr}')" class="flex-1 text-left truncate pr-2 py-0.5">
+                            ${escapeHTML(item)}
+                        </button>
+                        ${isDefaultInHouse ? '' : `
+                        <button type="button" onclick="deleteDropdownItem(event, '${type}', '${safeStr}')" title="ลบรายชื่อนี้"
+                            class="w-6 h-6 rounded-lg flex items-center justify-center text-slate-500 hover:text-rose-400 hover:bg-rose-950/60 transition-colors shrink-0">
+                            ✕
+                        </button>`}
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function selectDropdownItem(type, value) {
+            setDropdownValue(type, value);
+            document.getElementById(`${type}-menu`).classList.add('hidden');
+        }
+
+        function setDropdownValue(type, value) {
+            const hiddenInputId = type === 'recorder' ? 'recorder-name' : (type === 'task' ? 'task-owner' : (type === 'area' ? 'area-owner' : 'contractor-name'));
+            const displayEl = document.getElementById(`${type}-display`);
+            const hiddenInput = document.getElementById(hiddenInputId);
+
+            hiddenInput.value = value;
+            if (value) {
+                displayEl.textContent = value;
+                displayEl.classList.remove('text-slate-500');
+                displayEl.classList.add('text-slate-200', 'font-medium');
+            } else {
+                const placeholderMap = {
+                    recorder: '-- เลือกชื่อผู้ลงข้อมูล --',
+                    task: '-- เลือกเจ้าของงาน --',
+                    area: '-- เลือกเจ้าของพื้นที่ --',
+                    contractor: '-- เลือกผู้รับเหมา --'
+                };
+                displayEl.textContent = placeholderMap[type];
+                displayEl.classList.add('text-slate-500');
+                displayEl.classList.remove('text-slate-200', 'font-medium');
+            }
+        }
+
+        function deleteDropdownItem(event, type, value) {
+            event.stopPropagation();
+
+            if (type === 'contractor') {
+                contractorList = contractorList.filter(item => item !== value);
+                localStorage.setItem('plant_contractors_dark_v1', JSON.stringify(contractorList));
+                if (document.getElementById('contractor-name').value === value) {
+                    setDropdownValue('contractor', contractorList[0] || '');
+                }
+                renderDropdownList('contractor');
+            } else if (type === 'area') {
+                if (areaOwnerList.length <= 1) {
+                    showToast('ต้องเหลือรายชื่อเจ้าของพื้นที่อย่างน้อย 1 ท่าน', 'error');
+                    return;
+                }
+                areaOwnerList = areaOwnerList.filter(item => item !== value);
+                localStorage.setItem('plant_area_owners_dark_v1', JSON.stringify(areaOwnerList));
+                if (document.getElementById('area-owner').value === value) {
+                    setDropdownValue('area', '');
+                }
+                renderDropdownList('area');
+                populatePersonFilter();
+            } else {
+                if (personnelList.length <= 1) {
+                    showToast('ต้องเหลือรายชื่อบุคลากรในระบบอย่างน้อย 1 ท่าน', 'error');
+                    return;
+                }
+                personnelList = personnelList.filter(item => item !== value);
+                localStorage.setItem('plant_personnel_dark_v1', JSON.stringify(personnelList));
+
+                if (document.getElementById('recorder-name').value === value) setDropdownValue('recorder', '');
+                if (document.getElementById('task-owner').value === value) setDropdownValue('task', '');
+
+                renderDropdownList('recorder');
+                renderDropdownList('task');
+                populatePersonFilter();
+            }
+
+            showToast(`ลบ "${value}" ออกจากรายการแล้ว`);
+        }
+
+        function resetDefaultPersonnel(category = 'personnel') {
+            if (category === 'contractor') {
+                contractorList = [...DEFAULT_CONTRACTORS];
+                localStorage.setItem('plant_contractors_dark_v1', JSON.stringify(contractorList));
+                renderDropdownList('contractor');
+                showToast('รีเซ็ตรายชื่อผู้รับเหมาเป็นค่าเริ่มต้นแล้ว');
+            } else if (category === 'area') {
+                areaOwnerList = [...DEFAULT_AREA_OWNERS];
+                localStorage.setItem('plant_area_owners_dark_v1', JSON.stringify(areaOwnerList));
+                renderDropdownList('area');
+                populatePersonFilter();
+                showToast('รีเซ็ตรายชื่อเจ้าของพื้นที่ทั้ง 29 ท่านเรียบร้อยแล้ว');
+            } else {
+                personnelList = [...DEFAULT_PERSONNEL];
+                localStorage.setItem('plant_personnel_dark_v1', JSON.stringify(personnelList));
+                populateAllDropdowns();
+                showToast('รีเซ็ตรายชื่อบุคลากรทั้ง 7 ท่านเรียบร้อยแล้ว');
+            }
+        }
+
+        // 5. Add New Person / Contractor Modal
+        function openAddPersonModal(type) {
+            activeModalType = type;
+            const modalTitle = document.getElementById('modal-title');
+            const inputLabel = document.getElementById('modal-input-label');
+            const inputField = document.getElementById('new-person-input');
+
+            if (type === 'contractor') {
+                modalTitle.textContent = 'เพิ่มรายชื่อผู้รับเหมาใหม่';
+                inputLabel.textContent = 'ชื่อบริษัท / หจก. / ทีมผู้รับเหมา';
+                inputField.placeholder = 'เช่น บจก. ระยอง เอ็นจิเนียริ่ง';
+            } else if (type === 'area') {
+                modalTitle.textContent = 'เพิ่มรายชื่อเจ้าของพื้นที่ใหม่';
+                inputLabel.textContent = 'คำนำหน้า ชื่อ-นามสกุล';
+                inputField.placeholder = 'เช่น นายสมชาย ใจดี';
+            } else {
+                modalTitle.textContent = 'เพิ่มรายชื่อบุคลากรใหม่';
+                inputLabel.textContent = 'คำนำหน้า ชื่อ-นามสกุล และตำแหน่ง';
+                inputField.placeholder = 'เช่น นายสมชาย ใจดี — Engineer';
+            }
+
+            inputField.value = '';
+            document.getElementById('add-person-modal').classList.remove('hidden');
+            setTimeout(() => inputField.focus(), 50);
+        }
+
+        function closeAddPersonModal() {
+            document.getElementById('add-person-modal').classList.add('hidden');
+        }
+
+        function confirmAddPerson() {
+            const name = document.getElementById('new-person-input').value.trim();
+            if (!name) return;
+
+            if (activeModalType === 'contractor') {
+                if (!contractorList.includes(name)) {
+                    contractorList.push(name);
+                    localStorage.setItem('plant_contractors_dark_v1', JSON.stringify(contractorList));
+                }
+                setDropdownValue('contractor', name);
+            } else if (activeModalType === 'area') {
+                if (!areaOwnerList.includes(name)) {
+                    areaOwnerList.push(name);
+                    localStorage.setItem('plant_area_owners_dark_v1', JSON.stringify(areaOwnerList));
+                }
+                setDropdownValue('area', name);
+                populatePersonFilter();
+            } else {
+                if (!personnelList.includes(name)) {
+                    personnelList.push(name);
+                    localStorage.setItem('plant_personnel_dark_v1', JSON.stringify(personnelList));
+                }
+                populatePersonFilter();
+                setDropdownValue(activeModalType, name);
+            }
+
+            closeAddPersonModal();
+            showToast(`เพิ่ม "${name}" เรียบร้อยแล้ว`);
+        }
+
+        // 6. Create & Update Work Record
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const today = getTodayISOString();
+            const editId = document.getElementById('edit-id').value;
+            const date = document.getElementById('work-date').value;
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const recorder = document.getElementById('recorder-name').value.trim();
+            const area = document.getElementById('work-area').value;
+            const details = document.getElementById('work-details').value.trim();
+            const taskOwner = document.getElementById('task-owner').value;
+            const areaOwner = document.getElementById('area-owner').value;
+            const contractor = document.getElementById('contractor-name').value.trim();
+            let status = document.querySelector('input[name="work-status"]:checked').value;
+
+            if (!recorder) {
+                showToast('กรุณาเลือกชื่อผู้ลงข้อมูล', 'error');
+                toggleCustomDropdown('recorder');
+                return;
+            }
+            if (!taskOwner) {
+                showToast('กรุณาเลือกเจ้าของงาน', 'error');
+                toggleCustomDropdown('task');
+                return;
+            }
+            if (!areaOwner) {
+                showToast('กรุณาเลือกเจ้าของพื้นที่', 'error');
+                toggleCustomDropdown('area');
+                return;
+            }
+            if (!contractor) {
+                showToast('กรุณาเลือกผู้รับเหมา', 'error');
+                toggleCustomDropdown('contractor');
+                return;
+            }
+            if (!startDate) {
+                showToast('กรุณาระบุวันที่เริ่มงาน', 'error');
+                document.getElementById('start-date').focus();
+                return;
+            }
+
+            if (startDate > today) {
+                status = 'Not Started';
+            }
+
+            if (status === 'Completed' && !endDate) {
+                showToast('กรุณากรอก "วันที่งานเสร็จ" ก่อนเลือกสถานะ Completed', 'error');
+                document.getElementById('end-date').focus();
+                return;
+            }
+
+            if (endDate && endDate < startDate) {
+                showToast('วันที่งานเสร็จ ต้องไม่น้อยกว่าวันที่เริ่มงาน', 'error');
+                document.getElementById('end-date').focus();
+                return;
+            }
+
+            const nowTime = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+            if (editId) {
+                const index = workLogs.findIndex(item => item.id === editId);
+                if (index !== -1) {
+                    workLogs[index] = {
+                        ...workLogs[index],
+                        date,
+                        startDate,
+                        endDate: status === 'Completed' ? endDate : endDate,
+                        recorder,
+                        area,
+                        details,
+                        taskOwner,
+                        areaOwner,
+                        contractor,
+                        status,
+                        updatedAt: nowTime
+                    };
+                    showToast('อัปเดตข้อมูลงานเรียบร้อยแล้ว');
+                }
+            } else {
+                const newEntry = {
+                    id: 'LOG-' + Date.now(),
+                    date,
+                    startDate,
+                    endDate,
+                    recorder,
+                    area,
+                    details,
+                    taskOwner,
+                    areaOwner,
+                    contractor,
+                    status,
+                    updatedAt: nowTime
+                };
+                workLogs.unshift(newEntry);
+                showToast('บันทึกข้อมูลงานใหม่สำเร็จ');
+            }
+
+            saveLogs();
+            resetForm();
+            renderTable();
+        }
+
+        function editRecord(id) {
+            const record = workLogs.find(item => item.id === id);
+            if (!record) return;
+
+            document.getElementById('edit-id').value = record.id;
+            document.getElementById('work-date').value = record.date;
+            document.getElementById('start-date').value = record.startDate || record.date;
+            document.getElementById('end-date').value = record.endDate || '';
+            setDropdownValue('recorder', record.recorder);
+            document.getElementById('work-area').value = record.area;
+            document.getElementById('work-details').value = record.details;
+            setDropdownValue('task', record.taskOwner);
+            setDropdownValue('area', record.areaOwner);
+            setDropdownValue('contractor', record.contractor || contractorList[0]);
+
+            const radios = document.getElementsByName('work-status');
+            for (const r of radios) {
+                r.checked = (r.value === record.status);
+            }
+
+            validateScheduleAndStatus();
+
+            document.getElementById('form-title').textContent = 'แก้ไขข้อมูลงาน';
+            document.getElementById('submit-btn-text').textContent = 'บันทึกการแก้ไข';
+            document.getElementById('submit-btn').classList.replace('bg-blue-600', 'bg-amber-600');
+            document.getElementById('submit-btn').classList.replace('hover:bg-blue-500', 'hover:bg-amber-500');
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+
+            document.getElementById('work-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function resetForm() {
+            const currentRecorder = document.getElementById('recorder-name').value;
+            const currentContractor = document.getElementById('contractor-name').value;
+            document.getElementById('work-form').reset();
+            document.getElementById('edit-id').value = '';
+            setTodayDate();
+            document.getElementById('start-date').value = getTodayISOString();
+            document.getElementById('end-date').value = '';
+
+            if (currentRecorder && personnelList.includes(currentRecorder)) {
+                setDropdownValue('recorder', currentRecorder);
+            } else {
+                setDropdownValue('recorder', '');
+            }
+            setDropdownValue('task', '');
+            setDropdownValue('area', '');
+            setDropdownValue('contractor', currentContractor || contractorList[0] || '');
+
+            document.querySelector('input[name="work-status"][value="In-Progress"]').checked = true;
+            validateScheduleAndStatus();
+
+            document.getElementById('form-title').textContent = 'บันทึกข้อมูลงานประจำวัน';
+            document.getElementById('submit-btn-text').textContent = 'บันทึกข้อมูลงาน';
+            document.getElementById('submit-btn').classList.replace('bg-amber-600', 'bg-blue-600');
+            document.getElementById('submit-btn').classList.replace('hover:bg-amber-500', 'hover:bg-blue-500');
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+        }
+
+        // Inline Quick Status Change with Schedule Validation
+        function quickUpdateStatus(id, newStatus) {
+            const today = getTodayISOString();
+            const index = workLogs.findIndex(item => item.id === id);
+            if (index === -1) return;
+
+            const record = workLogs[index];
+            const startDate = record.startDate || record.date;
+
+            if (startDate > today && newStatus !== 'Not Started') {
+                showToast(`ยังไม่ถึงวันเริ่มงาน (${formatThaiDate(startDate)}) ระบบบังคับเป็น Not Started`, 'error');
+                renderTable();
+                return;
+            }
+
+            if (newStatus === 'Completed' && !record.endDate) {
+                showToast('กรุณากรอก "วันที่งานเสร็จ" ก่อนเปลี่ยนเป็น Completed', 'error');
+                editRecord(id);
+                setTimeout(() => {
+                    const endInput = document.getElementById('end-date');
+                    endInput.focus();
+                    endInput.classList.add('ring-2', 'ring-rose-500');
+                    setTimeout(() => endInput.classList.remove('ring-2', 'ring-rose-500'), 2500);
+                }, 300);
+                return;
+            }
+
+            workLogs[index].status = newStatus;
+            workLogs[index].updatedAt = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            saveLogs();
+            renderTable();
+            showToast(`เปลี่ยนสถานะเป็น "${newStatus}" แล้ว`);
+        }
+
+        // Delete Record Flow
+        function promptDeleteRecord(id) {
+            pendingDeleteId = id;
+            document.getElementById('delete-modal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            pendingDeleteId = null;
+            document.getElementById('delete-modal').classList.add('hidden');
+        }
+
+        function confirmDeleteRecord() {
+            if (!pendingDeleteId) return;
+            workLogs = workLogs.filter(item => item.id !== pendingDeleteId);
+            saveLogs();
+            renderTable();
+            closeDeleteModal();
+            showToast('ลบรายการงานเรียบร้อยแล้ว', 'error');
+        }
+
+        // 7. Rendering Table & Filters
+        function renderTable() {
+            const today = getTodayISOString();
+            const search = document.getElementById('filter-search').value.toLowerCase().trim();
+            const filterDate = document.getElementById('filter-date').value;
+            const filterArea = document.getElementById('filter-area').value;
+            const filterPerson = document.getElementById('filter-person').value;
+            const filterStatus = document.getElementById('filter-status').value;
+
+            const filtered = workLogs.filter(item => {
+                const matchSearch = !search ||
+                    item.details.toLowerCase().includes(search) ||
+                    item.recorder.toLowerCase().includes(search) ||
+                    item.taskOwner.toLowerCase().includes(search) ||
+                    item.areaOwner.toLowerCase().includes(search) ||
+                    (item.contractor && item.contractor.toLowerCase().includes(search)) ||
+                    item.area.toLowerCase().includes(search);
+
+                const matchDate = !filterDate || item.date === filterDate || item.startDate === filterDate;
+                const matchArea = filterArea === 'ALL' || item.area === filterArea;
+                const matchPerson = filterPerson === 'ALL' ||
+                    item.recorder === filterPerson ||
+                    item.taskOwner === filterPerson ||
+                    item.areaOwner === filterPerson;
+                const matchStatus = filterStatus === 'ALL' || item.status === filterStatus;
+
+                return matchSearch && matchDate && matchArea && matchPerson && matchStatus;
+            });
+
+            const isFiltered = search || filterDate || filterArea !== 'ALL' || filterPerson !== 'ALL' || filterStatus !== 'ALL';
+            const filterBar = document.getElementById('active-filter-bar');
+            if (isFiltered) {
+                filterBar.classList.remove('hidden');
+                document.getElementById('filter-summary-text').textContent = `แสดงผล ${filtered.length} จากทั้งหมด ${workLogs.length} รายการ`;
+            } else {
+                filterBar.classList.add('hidden');
+            }
+
+            const tbody = document.getElementById('work-table-body');
+            const emptyState = document.getElementById('empty-state');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            tbody.innerHTML = filtered.map(item => {
+                const areaBadge = getAreaBadgeHTML(item.area);
+                const statusSelectStyle = getStatusSelectStyle(item.status);
+                const contractorText = item.contractor || 'ไม่มีผู้รับเหมา / ดำเนินการเอง (In-house)';
+                const isInHouse = contractorText.includes('In-house');
+                const startDate = item.startDate || item.date;
+                const isNotYetStarted = startDate > today;
+
+                return `
+                    <tr class="hover:bg-slate-800/60 transition-colors group">
+                        <td class="py-3.5 px-4 align-top whitespace-nowrap">
+                            <div class="font-semibold text-slate-200 text-xs sm:text-sm">${formatThaiDate(item.date)}</div>
+                            <div class="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                                <i data-lucide="user-check" class="w-3.5 h-3.5 text-blue-400 shrink-0"></i>
+                                <span class="truncate max-w-[165px]" title="${escapeHTML(item.recorder)}">${escapeHTML(item.recorder)}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 mt-0.5">อัปเดต ${item.updatedAt || '-'} น.</div>
+                        </td>
+                        <td class="py-3.5 px-4 align-top whitespace-nowrap">
+                            ${areaBadge}
+                        </td>
+                        <td class="py-3.5 px-4 align-top">
+                            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line">${escapeHTML(item.details)}</p>
+                        </td>
+                        <td class="py-3.5 px-4 align-top whitespace-nowrap space-y-1.5">
+                            <div class="text-xs">
+                                <span class="text-slate-500">เจ้าของงาน:</span>
+                                <span class="font-medium text-slate-300 block sm:inline">${escapeHTML(item.taskOwner)}</span>
+                            </div>
+                            <div class="text-xs">
+                                <span class="text-slate-500">เจ้าของพื้นที่:</span>
+                                <span class="font-medium text-slate-300 block sm:inline">${escapeHTML(item.areaOwner)}</span>
+                            </div>
+                            <div class="text-xs pt-0.5">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${isInHouse ? 'bg-slate-800 text-slate-400 border border-slate-700' : 'bg-orange-950/60 text-orange-300 border border-orange-800/60'}">
+                                    <i data-lucide="hard-hat" class="w-3 h-3 shrink-0"></i>
+                                    <span class="truncate max-w-[190px]" title="${escapeHTML(contractorText)}">${escapeHTML(contractorText)}</span>
+                                </span>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 align-top whitespace-nowrap text-xs">
+                            <div class="flex items-center gap-1.5 text-slate-300">
+                                <span class="text-slate-500">เริ่ม:</span>
+                                <span class="font-semibold ${isNotYetStarted ? 'text-amber-400' : 'text-slate-200'}">${formatThaiDate(startDate)}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 mt-1">
+                                <span class="text-slate-500">เสร็จ:</span>
+                                ${item.endDate
+                                    ? `<span class="font-semibold text-emerald-400">${formatThaiDate(item.endDate)}</span>`
+                                    : `<span class="text-slate-500 italic">- ยังไม่ระบุ -</span>`
+                                }
+                            </div>
+                            ${isNotYetStarted ? `<div class="mt-1 text-[10px] text-amber-400 font-medium bg-amber-950/60 border border-amber-900/60 px-1.5 py-0.5 rounded inline-block">รอถึงวันเริ่มงาน</div>` : ''}
+                        </td>
+                        <td class="py-3.5 px-4 align-top whitespace-nowrap">
+                            <select onchange="quickUpdateStatus('${item.id}', this.value)"
+                                ${isNotYetStarted ? 'disabled title="ยังไม่ถึงวันที่เริ่มงาน ระบบบังคับเป็น Not Started"' : ''}
+                                class="text-xs font-semibold px-2.5 py-1.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${isNotYetStarted ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${statusSelectStyle}">
+                                <option value="Not Started" ${item.status === 'Not Started' ? 'selected' : ''}>● Not Started</option>
+                                <option value="In-Progress" ${item.status === 'In-Progress' ? 'selected' : ''} ${isNotYetStarted ? 'disabled' : ''}>● In-Progress</option>
+                                <option value="Completed" ${item.status === 'Completed' ? 'selected' : ''} ${isNotYetStarted ? 'disabled' : ''}>● Completed</option>
+                                <option value="Cancelled" ${item.status === 'Cancelled' ? 'selected' : ''} ${isNotYetStarted ? 'disabled' : ''}>● Cancelled</option>
+                            </select>
+                        </td>
+                        <td class="py-3.5 px-4 align-top text-right whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1">
+                                <button type="button" onclick="editRecord('${item.id}')" title="แก้ไขข้อมูล"
+                                    class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-950/60 rounded-lg transition-colors">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick="promptDeleteRecord('${item.id}')" title="ลบรายการ"
+                                    class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/60 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total').textContent = workLogs.length;
+            document.getElementById('stat-inprogress').textContent = workLogs.filter(i => i.status === 'In-Progress').length;
+            document.getElementById('stat-completed').textContent = workLogs.filter(i => i.status === 'Completed').length;
+            document.getElementById('stat-notstarted').textContent = workLogs.filter(i => i.status === 'Not Started').length;
+            document.getElementById('stat-cancelled').textContent = workLogs.filter(i => i.status === 'Cancelled').length;
+        }
+
+        function filterByStatusCard(status) {
+            document.getElementById('filter-status').value = status;
+            renderTable();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-date').value = '';
+            document.getElementById('filter-area').value = 'ALL';
+            document.getElementById('filter-person').value = 'ALL';
+            document.getElementById('filter-status').value = 'ALL';
+            renderTable();
+        }
+
+        // 8. Export CSV
+        function exportToCSV() {
+            if (workLogs.length === 0) {
+                showToast('ไม่มีข้อมูลสำหรับ Export', 'error');
+                return;
+            }
+
+            const headers = ['วันที่ลงข้อมูล', 'ชื่อผู้ลงข้อมูล', 'บริเวณพื้นที่ทำงาน', 'รายละเอียดงาน', 'เจ้าของงาน', 'เจ้าของพื้นที่', 'ผู้รับเหมา', 'วันที่เริ่มงาน', 'วันที่งานเสร็จ', 'สถานะงาน', 'เวลาอัปเดต'];
+            const rows = workLogs.map(item => [
+                item.date,
+                `"${(item.recorder || '').replace(/"/g, '""')}"`,
+                `"${(item.area || '').replace(/"/g, '""')}"`,
+                `"${(item.details || '').replace(/"/g, '""')}"`,
+                `"${(item.taskOwner || '').replace(/"/g, '""')}"`,
+                `"${(item.areaOwner || '').replace(/"/g, '""')}"`,
+                `"${(item.contractor || 'ไม่มีผู้รับเหมา / ดำเนินการเอง (In-house)').replace(/"/g, '""')}"`,
+                item.startDate || item.date,
+                item.endDate || '-',
+                item.status,
+                item.updatedAt || ''
+            ]);
+
+            const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Daily_Work_Log_${getTodayISOString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('ดาวน์โหลดไฟล์รายงาน CSV เรียบร้อยแล้ว');
+        }
+
+        // Helper Functions
+        function getAreaBadgeHTML(area) {
+            if (area.startsWith('Polymer')) {
+                const label = area.replace('Polymer#', 'Polymer #');
+                return `<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">${label}</span>`;
+            } else if (area.startsWith('UT')) {
+                return `<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">${area}</span>`;
+            } else {
+                return `<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/60">${escapeHTML(area)}</span>`;
+            }
+        }
+
+        function getStatusSelectStyle(status) {
+            switch (status) {
+                case 'In-Progress':
+                    return 'bg-blue-950/80 text-blue-300 border-blue-800/60';
+                case 'Completed':
+                    return 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60';
+                case 'Not Started':
+                    return 'bg-amber-950/80 text-amber-300 border-amber-800/60';
+                case 'Cancelled':
+                    return 'bg-rose-950/80 text-rose-300 border-rose-800/60';
+                default:
+                    return 'bg-slate-800 text-slate-300 border-slate-700';
+            }
+        }
+
+        function formatThaiDate(isoDate) {
+            if (!isoDate) return '-';
+            const [y, m, d] = isoDate.split('-');
+            const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            return `${parseInt(d, 10)} ${thaiMonths[parseInt(m, 10) - 1]} ${parseInt(y, 10) + 543}`;
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag]));
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = message;
+            if (type === 'error') {
+                toastIcon.setAttribute('data-lucide', 'alert-circle');
+                toastIcon.className = 'w-4 h-4 text-rose-400';
+            } else {
+                toastIcon.setAttribute('data-lucide', 'check-circle');
+                toastIcon.className = 'w-4 h-4 text-emerald-400';
+            }
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
